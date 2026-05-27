@@ -1,10 +1,10 @@
 // ==========================================
-// SOLO Auto Model 配置文件
+// 小张 配置文件
 // ==========================================
 
 // 推荐方案：使用 Ollama 本地运行模型（完全免费）
 const CONFIG = {
-  // SOLO Auto Model 设置
+  // 小张 设置
   soloAutoModel: {
     // DeepSeek API 地址
     apiUrl: 'https://api.deepseek.com/v1/chat/completions',
@@ -28,7 +28,7 @@ const CONFIG = {
   
   // 领域提示词配置
   domains: {
-    general: '你是一个乐于助人的AI助手，名为SOLO Auto Model。请用中文回答问题。',
+    general: '你是一个乐于助人的AI助手，名为小张。请用中文回答问题。',
     weight_loss: `你是一个专业的减肥顾问助手。请根据用户的问题，提供科学的减肥建议：
 - 饮食建议：控制热量摄入，均衡营养
 - 运动建议：制定合理的运动计划

@@ -35,7 +35,7 @@ const data = {
 data.conversations.push({
   id: 1,
   user_id: 1,
-  title: '欢迎使用SOLO Auto Model',
+  title: '欢迎使用小张',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString()
 });
@@ -44,7 +44,7 @@ data.messages.push({
   id: 1,
   conversation_id: 1,
   role: 'assistant',
-  content: '你好！我是SOLO Auto Model助手，很高兴为您服务！',
+  content: '你好！我是小张助手，很高兴为您服务！',
   created_at: new Date().toISOString()
 });
 
@@ -353,7 +353,7 @@ async function callSOLOAutoModel(messages) {
     const result = await response.json();
     return result.choices[0].message.content;
   } catch (error) {
-    console.error('SOLO Auto Model 调用错误:', error);
+    console.error('小张 调用错误:', error);
     throw error;
   }
 }
@@ -361,7 +361,7 @@ async function callSOLOAutoModel(messages) {
 function generateMockResponse(userMessage, domain = 'general') {
   const responses = {
     general: [
-      `你好！我是SOLO Auto Model助手。你说的是："${userMessage}"`,
+      `你好！我是小张助手。你说的是："${userMessage}"`,
       `很高兴为您服务！关于"${userMessage}"，我来帮您解答。`,
       `收到！这是一个很好的问题。让我想想怎么回答"${userMessage}"`
     ],
@@ -600,104 +600,94 @@ app.get('/wechat', (req, res) => {
   }
 });
 
-app.post('/wechat', async (req, res) => {
+app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
   try {
-    let body = '';
-    req.on('data', (chunk) => {
-      body += chunk;
-    });
+    const body = req.body;
+    console.log('收到微信消息:', body);
     
-    req.on('end', async () => {
-      try {
-        console.log('收到微信消息:', body);
-        const msg = parseXml(body);
-        
-        const fromUser = msg.FromUserName || '';
-        const toUser = msg.ToUserName || '';
-        const msgType = msg.MsgType || '';
-        const content = msg.Content || '';
-        
-        let replyMsg = '';
-        
-        if (msgType === 'event') {
-          const event = msg.Event || '';
-          if (event === 'subscribe') {
-            replyMsg = '🎉 欢迎关注SOLO Auto Model助手！\n\n我可以帮您：\n🌤️ 查询天气\n⏰ 获取时间\n🤖 智能对话\n💡 减肥建议\n\n请问有什么可以帮您的？';
-          } else {
-            replyMsg = '收到事件消息';
-          }
-        } else if (msgType === 'text') {
-          const domain = detectDomain(content);
-          
-          const lastAssistantMessage = '';
-          const wasAskingForCity = lastAssistantMessage && lastAssistantMessage.includes('查询哪个城市的天气');
-          let detectedCity = extractCityFromMessage(content);
-          
-          if ((domain === 'weather' || wasAskingForCity) && detectedCity) {
-            const weatherData = await getWeather(detectedCity);
-            if (weatherData) {
-              replyMsg = `🌤️ ${weatherData.city}天气：\n` +
-                         `天气状况：${weatherData.weather}\n` +
-                         `温度：${weatherData.temperature}°C\n` +
-                         `风向：${weatherData.windDirection}\n` +
-                         `风力：${weatherData.windPower}级\n` +
-                         `湿度：${weatherData.humidity}%\n` +
-                         `更新时间：${weatherData.reportTime}`;
-            } else {
-              replyMsg = `抱歉，暂时无法获取${detectedCity}的天气信息，请稍后再试。`;
-            }
-          } else if (domain === 'weather' && !detectedCity) {
-            replyMsg = '请问您想查询哪个城市的天气？我支持北京、上海、广州、深圳、杭州、南京、成都、武汉、西安、重庆、天津、苏州、郑州、长沙、洛阳、金华、宁波、青岛、厦门、合肥等多个城市。';
-          } else if (!CONFIG.soloAutoModel.useMock) {
-            try {
-              const profileInfo = extractUserProfileInfo(content);
-              updateUserProfile(1, profileInfo);
-              
-              const currentTime = new Date().toLocaleString('zh-CN', { 
-                timeZone: 'Asia/Shanghai',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                weekday: 'long',
-                hour: '2-digit',
-                minute: '2-digit'
-              });
-              
-              const profilePrompt = getUserProfilePrompt(1);
-              
-              const systemPrompt = getSystemPrompt(domain) + 
-                                  `\n\n当前系统时间：${currentTime}。如果用户问时间，直接告诉他。` + 
-                                  profilePrompt;
-              
-              const response = await callSOLOAutoModel([
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: content }
-              ]);
-              
-              replyMsg = response || '抱歉，我没明白您的意思。';
-            } catch (error) {
-              console.error('AI调用失败:', error);
-              replyMsg = '抱歉，AI服务暂时不可用，请稍后再试。';
-            }
-          } else {
-            replyMsg = generateMockResponse(content, domain);
-          }
-        } else {
-          replyMsg = '暂不支持该类型消息';
-        }
-        
-        const xmlResponse = buildXmlResponse(fromUser, toUser, replyMsg);
-        res.set('Content-Type', 'application/xml');
-        res.send(xmlResponse);
-        
-      } catch (error) {
-        console.error('微信消息处理失败:', error);
-        res.status(500).send('Error processing message');
+    const msg = parseXml(body);
+    
+    const fromUser = msg.FromUserName || '';
+    const toUser = msg.ToUserName || '';
+    const msgType = msg.MsgType || '';
+    const content = msg.Content || '';
+    
+    let replyMsg = '';
+    
+    if (msgType === 'event') {
+      const event = msg.Event || '';
+      if (event === 'subscribe') {
+        replyMsg = '🎉 欢迎关注小张助手！\n\n我可以帮您：\n🌤️ 查询天气\n⏰ 获取时间\n🤖 智能对话\n💡 减肥建议\n\n请问有什么可以帮您的？';
+      } else {
+        replyMsg = '收到事件消息';
       }
-    });
+    } else if (msgType === 'text') {
+      const domain = detectDomain(content);
+      
+      const lastAssistantMessage = '';
+      const wasAskingForCity = lastAssistantMessage && lastAssistantMessage.includes('查询哪个城市的天气');
+      let detectedCity = extractCityFromMessage(content);
+      
+      if ((domain === 'weather' || wasAskingForCity) && detectedCity) {
+        const weatherData = await getWeather(detectedCity);
+        if (weatherData) {
+          replyMsg = `🌤️ ${weatherData.city}天气：\n` +
+                     `天气状况：${weatherData.weather}\n` +
+                     `温度：${weatherData.temperature}°C\n` +
+                     `风向：${weatherData.windDirection}\n` +
+                     `风力：${weatherData.windPower}级\n` +
+                     `湿度：${weatherData.humidity}%\n` +
+                     `更新时间：${weatherData.reportTime}`;
+        } else {
+          replyMsg = `抱歉，暂时无法获取${detectedCity}的天气信息，请稍后再试。`;
+        }
+      } else if (domain === 'weather' && !detectedCity) {
+        replyMsg = '请问您想查询哪个城市的天气？我支持北京、上海、广州、深圳、杭州、南京、成都、武汉、西安、重庆、天津、苏州、郑州、长沙、洛阳、金华、宁波、青岛、厦门、合肥等多个城市。';
+      } else if (!CONFIG.soloAutoModel.useMock) {
+        try {
+          const profileInfo = extractUserProfileInfo(content);
+          updateUserProfile(1, profileInfo);
+          
+          const currentTime = new Date().toLocaleString('zh-CN', { 
+            timeZone: 'Asia/Shanghai',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            weekday: 'long',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          const profilePrompt = getUserProfilePrompt(1);
+          
+          const systemPrompt = getSystemPrompt(domain) + 
+                              `\n\n当前系统时间：${currentTime}。如果用户问时间，直接告诉他。` + 
+                              profilePrompt;
+          
+          const response = await callSOLOAutoModel([
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: content }
+          ]);
+          
+          replyMsg = response || '抱歉，我没明白您的意思。';
+        } catch (error) {
+          console.error('AI调用失败:', error);
+          replyMsg = '抱歉，AI服务暂时不可用，请稍后再试。';
+        }
+      } else {
+        replyMsg = generateMockResponse(content, domain);
+      }
+    } else {
+      replyMsg = '暂不支持该类型消息';
+    }
+    
+    const xmlResponse = buildXmlResponse(fromUser, toUser, replyMsg);
+    res.set('Content-Type', 'application/xml');
+    res.send(xmlResponse);
+    
   } catch (error) {
-    console.error('微信接口错误:', error);
-    res.status(500).send('Internal error');
+    console.error('微信消息处理失败:', error);
+    res.status(500).send('Error processing message');
   }
 });
 
@@ -778,7 +768,7 @@ app.get('/admin/stats', (req, res) => {
       messages: data.messages.length,
       soloAutoModelStatus: CONFIG.soloAutoModel.useMock ? '模拟模式' : '已连接真实API',
       recentActivity: [
-        { time: new Date().toISOString(), type: 'system', desc: 'SOLO Auto Model 服务运行中' }
+        { time: new Date().toISOString(), type: 'system', desc: '小张 服务运行中' }
       ]
     }
   });
@@ -868,7 +858,7 @@ app.post('/api/chat', async (req, res) => {
       response = await callSOLOAutoModel(messages);
     } catch (error) {
       console.error('AI 调用失败:', error);
-      response = '抱歉，SOLO Auto Model 服务暂时不可用，请检查配置。';
+      response = '抱歉，小张 服务暂时不可用，请检查配置。';
     }
   } else {
     response = generateMockResponse(message, domain);
@@ -941,7 +931,7 @@ app.get('/', (req, res) => {
   res.send(`
     <html>
       <head>
-        <title>SOLO Auto Model 状态</title>
+        <title>小张 状态</title>
         <style>
           * { box-sizing: border-box; }
           body { 
@@ -1047,7 +1037,7 @@ app.get('/', (req, res) => {
       </head>
       <body>
         <div class="container">
-          <h1>🚀 SOLO Auto Model 微信服务号</h1>
+          <h1>🚀 小张 微信服务号</h1>
           
           <p style="font-size: 1.2rem; color: #1f2937;">
             <strong>状态：</strong>
@@ -1090,7 +1080,7 @@ app.get('/', (req, res) => {
               试试查询天气：<code>北京天气</code>、<code>洛阳天气怎么样</code>
             </p>
             <div class="chat-demo" id="chatDemo">
-              <div class="chat-bubble assistant">你好！我是SOLO Auto Model助手，很高兴为您服务！可以问我天气、时间或任何问题！</div>
+              <div class="chat-bubble assistant">你好！我是小张助手，很高兴为您服务！可以问我天气、时间或任何问题！</div>
             </div>
             <div class="chat-input">
               <input type="text" id="chatInput" placeholder="输入消息..." onkeypress="if(event.key==='Enter')sendMessage()">
@@ -1151,10 +1141,10 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log('\n' + '═'.repeat(60));
-  console.log('   🚀 SOLO Auto Model 服务已成功启动！');
+  console.log('   🚀 小张 服务已成功启动！');
   console.log('═'.repeat(60));
   console.log(`📍 服务地址: http://localhost:${PORT}`);
-  console.log(`🔗 SOLO Auto Model: ${CONFIG.soloAutoModel.useMock ? '⚠️ 模拟模式' : '✅ 已连接真实API'}`);
+  console.log(`🔗 小张: ${CONFIG.soloAutoModel.useMock ? '⚠️ 模拟模式' : '✅ 已连接真实API'}`);
   console.log(`🌤️ 天气功能: ✅ 已启用（支持50+城市）`);
   console.log('═'.repeat(60) + '\n');
 });
