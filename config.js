@@ -16,7 +16,7 @@ const CONFIG = {
     model: 'deepseek-chat',
     
     // 是否使用模拟模式（false = 使用真实 Ollama）
-    useMock: false,  // ← 设置为 false 启用真实 AI
+    useMock: true,  // ← 设置为 false 启用真实 AI
     
     // 请求参数
     temperature: 0.7,
