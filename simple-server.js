@@ -579,11 +579,11 @@ function verifyWechatSignature(req) {
 
 function parseXml(xml) {
   const result = {};
-  const regex = /<(\w+)>(<!\[CDATA\[)?([\s\S]*?)(]]>)?<\/\1>/g;
+  const regex = /<(\w+)>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/\1>/g;
   let match;
   
   while ((match = regex.exec(xml)) !== null) {
-    result[match[1]] = match[3];
+    result[match[1]] = match[2];
   }
   
   return result;
