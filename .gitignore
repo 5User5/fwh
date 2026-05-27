@@ -21,3 +21,6 @@ Thumbs.db
 # 忽略构建产物
 dist/
 build/
+
+# 忽略本地工具配置
+.trae/
