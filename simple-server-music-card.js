@@ -122,7 +122,7 @@ app.post('/wechat', async (req, res) => {
             
             replyContent += '\n\n💡 点击链接可以直接在QQ音乐播放';
           } else {
-            replyContent = `抱歉，没有找到「${songName}」相关的歌曲，请试试其他歌名！';
+            replyContent = `抱歉，没有找到「${songName}」相关的歌曲，请试试其他歌名！`;
           }
         } else {
           replyContent = '想点什么歌？请发送：点歌 歌曲名\n\n例如：点歌 小幸运';
