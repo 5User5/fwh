@@ -1,0 +1,19 @@
+{
+  "name": "solo-auto-model-wechat",
+  "version": "1.0.0",
+  "description": "SOLO Auto Model 微信服务号助手",
+  "main": "simple-server.js",
+  "scripts": {
+    "start": "node simple-server.js",
+    "dev": "node simple-server.js",
+    "frontend": "cd frontend && npm start",
+    "install-all": "npm install && cd frontend && npm install"
+  },
+  "keywords": ["wechat", "ai", "chatbot"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5"
+  }
+}
