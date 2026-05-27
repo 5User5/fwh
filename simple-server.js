@@ -618,13 +618,16 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
   try {
     const body = req.body;
     console.log('收到微信消息:', body);
+    console.log('=== 开始解析 ===');
     
     const msg = parseXml(body);
+    console.log('解析结果:', msg);
     
     const fromUser = msg.FromUserName || '';
     const toUser = msg.ToUserName || '';
     const msgType = msg.MsgType || '';
     const content = msg.Content || '';
+    console.log('提取数据:', { fromUser, toUser, msgType, content });
     
     let replyMsg = '';
     
@@ -696,8 +699,12 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
     }
     
     const xmlResponse = buildXmlResponse(fromUser, toUser, replyMsg);
+    console.log('=== 准备回复 ===');
+    console.log('回复内容:', replyMsg);
+    console.log('XML响应:', xmlResponse);
     res.set('Content-Type', 'application/xml');
     res.send(xmlResponse);
+    console.log('=== 回复完成 ===');
     
   } catch (error) {
     console.error('微信消息处理失败:', error);
