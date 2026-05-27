@@ -331,7 +331,13 @@ async function callSOLOAutoModel(messages) {
     return null;
   }
 
+  console.log(`📡 正在调用 AI API: ${CONFIG.soloAutoModel.apiUrl}`);
+  console.log(`📝 消息数量: ${messages.length}`);
+
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
     const response = await fetch(CONFIG.soloAutoModel.apiUrl, {
       method: 'POST',
       headers: {
@@ -343,17 +349,25 @@ async function callSOLOAutoModel(messages) {
         messages: messages,
         temperature: CONFIG.soloAutoModel.temperature,
         max_tokens: CONFIG.soloAutoModel.maxTokens
-      })
+      }),
+      signal: controller.signal
     });
 
+    clearTimeout(timeoutId);
+
+    console.log(`✅ API 响应状态: ${response.status}`);
+
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ API 请求失败: ${response.status} - ${errorText}`);
       throw new Error(`API 请求失败: ${response.status}`);
     }
 
     const result = await response.json();
+    console.log('✅ AI 调用成功');
     return result.choices[0].message.content;
   } catch (error) {
-    console.error('小张 调用错误:', error);
+    console.error('❌ 小张 调用错误:', error.message);
     throw error;
   }
 }
