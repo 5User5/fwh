@@ -718,13 +718,15 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
     try {
       if (msgType === 'event') {
         const event = msg.Event || '';
-        console.log('处理事件消息:', event);
+        const eventKey = msg.EventKey || '';
+        console.log('处理事件消息:', { event, eventKey, latitude, longitude });
+        
         if (event === 'subscribe') {
           replyMsg = '🎉 欢迎关注小张助手！\n\n我可以帮您：\n🌤️ 查询天气\n⏰ 获取时间\n🤖 智能对话\n💡 减肥建议\n\n请问有什么可以帮您的？';
-        } else if (event === 'LOCATION') {
-          const lat = latitude || '';
-          const lng = longitude || '';
-          console.log(`📍 收到地理位置: ${lat}, ${lng}`);
+        } else if (event === 'LOCATION' || eventKey === 'LOCATION') {
+          const lat = latitude || msg.Latitude || '';
+          const lng = longitude || msg.Longitude || '';
+          console.log(`📍 收到地理位置事件 - 纬度: ${lat}, 经度: ${lng}`);
           saveUserLocation(fromUser, lat, lng);
           replyMsg = `已收到您的位置信息！\n纬度: ${lat}\n经度: ${lng}\n\n需要我帮您查询当地天气吗？`;
         } else {
