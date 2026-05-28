@@ -88,6 +88,18 @@ function getUserLocation(openid) {
   return userLocations[openid] || null;
 }
 
+// 表情列表 - 随机选择
+const emojis = [
+  '😊', '😄', '🙂', '🥰', '😎', '🤗', '👍', '✨', '🌟', '🎉',
+  '🌤️', '🌈', '🌸', '🌺', '🍀', '🐱', '🐶', '🦋', '🐰', '🦄',
+  '💡', '🎯', '🚀', '💪', '🎊', '✨', '🌟', '💫', '🎈', '🎁'
+];
+
+// 获取随机表情
+function getRandomEmoji() {
+  return emojis[Math.floor(Math.random() * emojis.length)];
+}
+
 // 清理AI回复格式（移除 ** 符号，添加礼貌用语和表情）
 function cleanAiResponse(text) {
   if (!text) return '';
@@ -99,8 +111,11 @@ function cleanAiResponse(text) {
   
   // 添加表情和礼貌用语
   if (!result.includes('！') && !result.includes('。')) {
-    result += '哦~';
+    result += '~';
   }
+  
+  // 在开头添加随机表情
+  result = `${getRandomEmoji()} ${result}`;
   
   return result;
 }
