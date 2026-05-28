@@ -48,6 +48,28 @@ data.messages.push({
   created_at: new Date().toISOString()
 });
 
+// 用户对话历史存储（按用户openid存储）
+const userConversations = {};
+
+// 获取用户对话历史
+function getUserConversation(openid) {
+  if (!userConversations[openid]) {
+    userConversations[openid] = [];
+  }
+  return userConversations[openid];
+}
+
+// 添加消息到对话历史
+function addMessageToConversation(openid, role, content) {
+  const conversation = getUserConversation(openid);
+  conversation.push({ role, content, timestamp: Date.now() });
+  
+  // 限制历史记录数量（最多保留10轮对话）
+  if (conversation.length > 20) {
+    conversation.splice(0, conversation.length - 20);
+  }
+}
+
 function getMockWeather(cityName) {
   const specialWeather = {
     '金华': { weather: '大雨', temperature: '31', windDirection: '东风', windPower: '4', humidity: '76' },
@@ -679,6 +701,11 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
         console.log('处理事件消息:', event);
         if (event === 'subscribe') {
           replyMsg = '🎉 欢迎关注小张助手！\n\n我可以帮您：\n🌤️ 查询天气\n⏰ 获取时间\n🤖 智能对话\n💡 减肥建议\n\n请问有什么可以帮您的？';
+        } else if (event === 'LOCATION') {
+          const latitude = msg.Latitude || '';
+          const longitude = msg.Longitude || '';
+          console.log(`📍 收到地理位置: ${latitude}, ${longitude}`);
+          replyMsg = `已收到您的位置信息！\n纬度: ${latitude}\n经度: ${longitude}\n\n需要我帮您查询当地天气吗？`;
         } else {
           replyMsg = '收到事件消息';
         }
@@ -728,13 +755,31 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
                                 `\n\n当前系统时间：${currentTime}。如果用户问时间，直接告诉他。` + 
                                 profilePrompt;
             
-            const response = await callSOLOAutoModel([
-              { role: 'system', content: systemPrompt },
-              { role: 'user', content: content }
-            ]);
+            // 获取用户对话历史
+            const userHistory = getUserConversation(fromUser);
+            
+            // 构建完整的消息列表（系统消息 + 历史记录 + 当前消息）
+            const messages = [{ role: 'system', content: systemPrompt }];
+            
+            // 添加历史对话
+            userHistory.forEach(msg => {
+              messages.push({ role: msg.role, content: msg.content });
+            });
+            
+            // 添加当前用户消息
+            messages.push({ role: 'user', content: content });
+            
+            console.log(`📝 历史消息数量: ${userHistory.length}`);
+            
+            const response = await callSOLOAutoModel(messages);
             
             replyMsg = response || '抱歉，我没明白您的意思。';
             console.log('AI回复:', replyMsg);
+            
+            // 保存对话到历史记录
+            addMessageToConversation(fromUser, 'user', content);
+            addMessageToConversation(fromUser, 'assistant', replyMsg);
+            
           } catch (aiError) {
             console.error('AI调用失败:', aiError);
             replyMsg = '抱歉，AI服务暂时不可用，请稍后再试。';
