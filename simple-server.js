@@ -620,95 +620,143 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
     console.log('收到微信消息:', body);
     console.log('=== 开始解析 ===');
     
-    const msg = parseXml(body);
-    console.log('解析结果:', msg);
+    let msg;
+    try {
+      msg = parseXml(body);
+      console.log('解析结果:', msg);
+    } catch (parseErr) {
+      console.error('XML解析错误:', parseErr);
+      const echoMsg = body.match(/<FromUserName>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/FromUserName>/)?.[1] || '';
+      const echoToUser = body.match(/<ToUserName>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/ToUserName>/)?.[1] || '';
+      const errorReply = buildXmlResponse(echoMsg, echoToUser, '消息解析错误，请稍后重试');
+      res.set('Content-Type', 'application/xml');
+      res.send(errorReply);
+      return;
+    }
     
-    const fromUser = msg.FromUserName || '';
-    const toUser = msg.ToUserName || '';
-    const msgType = msg.MsgType || '';
-    const content = msg.Content || '';
-    console.log('提取数据:', { fromUser, toUser, msgType, content });
+    let fromUser, toUser, msgType, content;
+    try {
+      fromUser = msg.FromUserName || '';
+      toUser = msg.ToUserName || '';
+      msgType = msg.MsgType || '';
+      content = msg.Content || '';
+      console.log('提取数据:', { fromUser, toUser, msgType, content });
+    } catch (extractErr) {
+      console.error('提取数据错误:', extractErr);
+      const errorReply = buildXmlResponse(msg.FromUserName || '', msg.ToUserName || '', '消息处理错误，请稍后重试');
+      res.set('Content-Type', 'application/xml');
+      res.send(errorReply);
+      return;
+    }
     
     let replyMsg = '';
     
-    if (msgType === 'event') {
-      const event = msg.Event || '';
-      if (event === 'subscribe') {
-        replyMsg = '🎉 欢迎关注小张助手！\n\n我可以帮您：\n🌤️ 查询天气\n⏰ 获取时间\n🤖 智能对话\n💡 减肥建议\n\n请问有什么可以帮您的？';
-      } else {
-        replyMsg = '收到事件消息';
-      }
-    } else if (msgType === 'text') {
-      const domain = detectDomain(content);
-      
-      const lastAssistantMessage = '';
-      const wasAskingForCity = lastAssistantMessage && lastAssistantMessage.includes('查询哪个城市的天气');
-      let detectedCity = extractCityFromMessage(content);
-      
-      if ((domain === 'weather' || wasAskingForCity) && detectedCity) {
-        const weatherData = await getWeather(detectedCity);
-        if (weatherData) {
-          replyMsg = `🌤️ ${weatherData.city}天气：\n` +
-                     `天气状况：${weatherData.weather}\n` +
-                     `温度：${weatherData.temperature}°C\n` +
-                     `风向：${weatherData.windDirection}\n` +
-                     `风力：${weatherData.windPower}级\n` +
-                     `湿度：${weatherData.humidity}%\n` +
-                     `更新时间：${weatherData.reportTime}`;
+    try {
+      if (msgType === 'event') {
+        const event = msg.Event || '';
+        console.log('处理事件消息:', event);
+        if (event === 'subscribe') {
+          replyMsg = '🎉 欢迎关注小张助手！\n\n我可以帮您：\n🌤️ 查询天气\n⏰ 获取时间\n🤖 智能对话\n💡 减肥建议\n\n请问有什么可以帮您的？';
         } else {
-          replyMsg = `抱歉，暂时无法获取${detectedCity}的天气信息，请稍后再试。`;
+          replyMsg = '收到事件消息';
         }
-      } else if (domain === 'weather' && !detectedCity) {
-        replyMsg = '请问您想查询哪个城市的天气？我支持北京、上海、广州、深圳、杭州、南京、成都、武汉、西安、重庆、天津、苏州、郑州、长沙、洛阳、金华、宁波、青岛、厦门、合肥等多个城市。';
-      } else if (!CONFIG.soloAutoModel.useMock) {
-        try {
-          const profileInfo = extractUserProfileInfo(content);
-          updateUserProfile(1, profileInfo);
-          
-          const currentTime = new Date().toLocaleString('zh-CN', { 
-            timeZone: 'Asia/Shanghai',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            weekday: 'long',
-            hour: '2-digit',
-            minute: '2-digit'
-          });
-          
-          const profilePrompt = getUserProfilePrompt(1);
-          
-          const systemPrompt = getSystemPrompt(domain) + 
-                              `\n\n当前系统时间：${currentTime}。如果用户问时间，直接告诉他。` + 
-                              profilePrompt;
-          
-          const response = await callSOLOAutoModel([
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: content }
-          ]);
-          
-          replyMsg = response || '抱歉，我没明白您的意思。';
-        } catch (error) {
-          console.error('AI调用失败:', error);
-          replyMsg = '抱歉，AI服务暂时不可用，请稍后再试。';
+      } else if (msgType === 'text') {
+        console.log('处理文本消息');
+        const domain = detectDomain(content);
+        
+        const lastAssistantMessage = '';
+        const wasAskingForCity = lastAssistantMessage && lastAssistantMessage.includes('查询哪个城市的天气');
+        let detectedCity = extractCityFromMessage(content);
+        
+        if ((domain === 'weather' || wasAskingForCity) && detectedCity) {
+          console.log('查询天气:', detectedCity);
+          const weatherData = await getWeather(detectedCity);
+          if (weatherData) {
+            replyMsg = `🌤️ ${weatherData.city}天气：\n` +
+                       `天气状况：${weatherData.weather}\n` +
+                       `温度：${weatherData.temperature}°C\n` +
+                       `风向：${weatherData.windDirection}\n` +
+                       `风力：${weatherData.windPower}级\n` +
+                       `湿度：${weatherData.humidity}%\n` +
+                       `更新时间：${weatherData.reportTime}`;
+          } else {
+            replyMsg = `抱歉，暂时无法获取${detectedCity}的天气信息，请稍后再试。`;
+          }
+        } else if (domain === 'weather' && !detectedCity) {
+          replyMsg = '请问您想查询哪个城市的天气？我支持北京、上海、广州、深圳、杭州、南京、成都、武汉、西安、重庆、天津、苏州、郑州、长沙、洛阳、金华、宁波、青岛、厦门、合肥等多个城市。';
+        } else if (!CONFIG.soloAutoModel.useMock) {
+          try {
+            console.log('调用AI模型');
+            const profileInfo = extractUserProfileInfo(content);
+            updateUserProfile(1, profileInfo);
+            
+            const currentTime = new Date().toLocaleString('zh-CN', { 
+              timeZone: 'Asia/Shanghai',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+              weekday: 'long',
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            
+            const profilePrompt = getUserProfilePrompt(1);
+            
+            const systemPrompt = getSystemPrompt(domain) + 
+                                `\n\n当前系统时间：${currentTime}。如果用户问时间，直接告诉他。` + 
+                                profilePrompt;
+            
+            const response = await callSOLOAutoModel([
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: content }
+            ]);
+            
+            replyMsg = response || '抱歉，我没明白您的意思。';
+            console.log('AI回复:', replyMsg);
+          } catch (aiError) {
+            console.error('AI调用失败:', aiError);
+            replyMsg = '抱歉，AI服务暂时不可用，请稍后再试。';
+          }
+        } else {
+          replyMsg = generateMockResponse(content, domain);
         }
       } else {
-        replyMsg = generateMockResponse(content, domain);
+        console.log('不支持的消息类型:', msgType);
+        replyMsg = '暂不支持该类型消息';
       }
-    } else {
-      replyMsg = '暂不支持该类型消息';
+    } catch (logicErr) {
+      console.error('消息处理逻辑错误:', logicErr);
+      replyMsg = '消息处理中遇到错误，请稍后重试';
     }
     
-    const xmlResponse = buildXmlResponse(fromUser, toUser, replyMsg);
-    console.log('=== 准备回复 ===');
-    console.log('回复内容:', replyMsg);
-    console.log('XML响应:', xmlResponse);
+    let xmlResponse;
+    try {
+      xmlResponse = buildXmlResponse(fromUser, toUser, replyMsg);
+      console.log('=== 准备回复 ===');
+      console.log('回复内容:', replyMsg);
+      console.log('XML响应:', xmlResponse);
+    } catch (buildErr) {
+      console.error('构建响应错误:', buildErr);
+      xmlResponse = buildXmlResponse(fromUser, toUser, '生成回复失败');
+    }
+    
     res.set('Content-Type', 'application/xml');
     res.send(xmlResponse);
     console.log('=== 回复完成 ===');
     
   } catch (error) {
     console.error('微信消息处理失败:', error);
-    res.status(500).send('Error processing message');
+    console.error('错误堆栈:', error.stack);
+    try {
+      const body = req.body || '';
+      const fromUser = body.match(/<FromUserName>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/FromUserName>/)?.[1] || '';
+      const toUser = body.match(/<ToUserName>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/ToUserName>/)?.[1] || '';
+      const errorReply = buildXmlResponse(fromUser, toUser, '服务暂时不可用，请稍后重试');
+      res.set('Content-Type', 'application/xml');
+      res.send(errorReply);
+    } catch (finalErr) {
+      res.status(500).send('Error processing message');
+    }
   }
 });
 
