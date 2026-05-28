@@ -606,6 +606,11 @@ function parseXml(xml) {
   return result;
 }
 
+function removeCdata(str) {
+  if (!str) return '';
+  return str.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1').trim();
+}
+
 function buildXmlResponse(toUser, fromUser, content) {
   return `
     <xml>
@@ -653,14 +658,14 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
     
     let fromUser, toUser, msgType, content;
     try {
-      fromUser = msg.FromUserName || '';
-      toUser = msg.ToUserName || '';
-      msgType = msg.MsgType || '';
-      content = msg.Content || '';
+      fromUser = removeCdata(msg.FromUserName || '');
+      toUser = removeCdata(msg.ToUserName || '');
+      msgType = removeCdata(msg.MsgType || '');
+      content = removeCdata(msg.Content || '');
       console.log('提取数据:', { fromUser, toUser, msgType, content });
     } catch (extractErr) {
       console.error('提取数据错误:', extractErr);
-      const errorReply = buildXmlResponse(msg.FromUserName || '', msg.ToUserName || '', '消息处理错误，请稍后重试');
+      const errorReply = buildXmlResponse(removeCdata(msg.FromUserName || ''), removeCdata(msg.ToUserName || ''), '消息处理错误，请稍后重试');
       res.set('Content-Type', 'application/xml');
       res.send(errorReply);
       return;
