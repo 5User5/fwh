@@ -795,6 +795,21 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
           const wasAskingForCity = lastAssistantMessage && lastAssistantMessage.includes('查询哪个城市的天气');
           let detectedCity = extractCityFromMessage(content);
           
+          // 如果是天气查询且没有检测到城市，检查是否有保存的位置
+          if ((domain === 'weather' || wasAskingForCity) && !detectedCity) {
+            const userLocation = getUserLocation(fromUser);
+            if (userLocation) {
+              // 使用位置获取城市并查询天气
+              const locationPrompt = `请从以下地址中提取城市名称（只返回城市名）：\n${userLocation.latitude}, ${userLocation.longitude}`;
+              const locationResponse = await callSOLOAutoModel([
+                { role: 'system', content: '你是一个地理信息专家，擅长从经纬度提取城市名称。只返回城市名，不要多余内容。' },
+                { role: 'user', content: locationPrompt }
+              ]);
+              detectedCity = cleanAiResponse(locationResponse).replace(/[^\\u4e00-\\u9fa5]/g, '').trim();
+              console.log('从位置获取城市:', detectedCity);
+            }
+          }
+          
           if ((domain === 'weather' || wasAskingForCity) && detectedCity) {
           console.log('查询天气:', detectedCity);
           const weatherData = await getWeather(detectedCity);
@@ -810,7 +825,12 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
             replyMsg = `抱歉，暂时无法获取${detectedCity}的天气信息，请稍后再试。`;
           }
         } else if (domain === 'weather' && !detectedCity) {
-          replyMsg = '请问您想查询哪个城市的天气？我支持北京、上海、广州、深圳、杭州、南京、成都、武汉、西安、重庆、天津、苏州、郑州、长沙、洛阳、金华、宁波、青岛、厦门、合肥等多个城市。';
+          const userLocation = getUserLocation(fromUser);
+          if (!userLocation) {
+            replyMsg = '🌤️ 请问您想查询哪个城市的天气？\n\n或者您可以：\n1. 开启位置权限（在服务号设置中授权）\n2. 点击右下角「+」→「位置」发送您的位置\n\n我支持北京、上海、广州、深圳、杭州等多个城市~';
+          } else {
+            replyMsg = '🌤️ 正在为您查询当前位置的天气...';
+          }
         } else if (!CONFIG.soloAutoModel.useMock) {
           try {
             console.log('调用AI模型');
