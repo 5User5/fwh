@@ -70,6 +70,24 @@ function addMessageToConversation(openid, role, content) {
   }
 }
 
+// 用户位置存储（按用户openid存储）
+const userLocations = {};
+
+// 保存用户位置
+function saveUserLocation(openid, latitude, longitude) {
+  userLocations[openid] = {
+    latitude,
+    longitude,
+    timestamp: Date.now()
+  };
+  console.log(`📍 保存位置: ${openid} -> ${latitude}, ${longitude}`);
+}
+
+// 获取用户位置
+function getUserLocation(openid) {
+  return userLocations[openid] || null;
+}
+
 function getMockWeather(cityName) {
   const specialWeather = {
     '金华': { weather: '大雨', temperature: '31', windDirection: '东风', windPower: '4', humidity: '76' },
@@ -678,13 +696,15 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
       return;
     }
     
-    let fromUser, toUser, msgType, content;
+    let fromUser, toUser, msgType, content, latitude, longitude;
     try {
       fromUser = removeCdata(msg.FromUserName || '');
       toUser = removeCdata(msg.ToUserName || '');
       msgType = removeCdata(msg.MsgType || '');
       content = removeCdata(msg.Content || '');
-      console.log('提取数据:', { fromUser, toUser, msgType, content });
+      latitude = removeCdata(msg.Latitude || '');
+      longitude = removeCdata(msg.Longitude || '');
+      console.log('提取数据:', { fromUser, toUser, msgType, content, latitude, longitude });
     } catch (extractErr) {
       console.error('提取数据错误:', extractErr);
       const errorReply = buildXmlResponse(removeCdata(msg.FromUserName || ''), removeCdata(msg.ToUserName || ''), '消息处理错误，请稍后重试');
@@ -702,22 +722,37 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
         if (event === 'subscribe') {
           replyMsg = '🎉 欢迎关注小张助手！\n\n我可以帮您：\n🌤️ 查询天气\n⏰ 获取时间\n🤖 智能对话\n💡 减肥建议\n\n请问有什么可以帮您的？';
         } else if (event === 'LOCATION') {
-          const latitude = msg.Latitude || '';
-          const longitude = msg.Longitude || '';
-          console.log(`📍 收到地理位置: ${latitude}, ${longitude}`);
-          replyMsg = `已收到您的位置信息！\n纬度: ${latitude}\n经度: ${longitude}\n\n需要我帮您查询当地天气吗？`;
+          const lat = latitude || '';
+          const lng = longitude || '';
+          console.log(`📍 收到地理位置: ${lat}, ${lng}`);
+          saveUserLocation(fromUser, lat, lng);
+          replyMsg = `已收到您的位置信息！\n纬度: ${lat}\n经度: ${lng}\n\n需要我帮您查询当地天气吗？`;
         } else {
           replyMsg = '收到事件消息';
         }
       } else if (msgType === 'text') {
         console.log('处理文本消息');
-        const domain = detectDomain(content);
         
-        const lastAssistantMessage = '';
-        const wasAskingForCity = lastAssistantMessage && lastAssistantMessage.includes('查询哪个城市的天气');
-        let detectedCity = extractCityFromMessage(content);
+        const locationKeywords = ['哪里', '位置', '在哪', '坐标'];
+        const isAskingLocation = locationKeywords.some(keyword => content.includes(keyword));
         
-        if ((domain === 'weather' || wasAskingForCity) && detectedCity) {
+        if (isAskingLocation) {
+          const userLocation = getUserLocation(fromUser);
+          if (userLocation) {
+            replyMsg = `您当前的位置是：\n纬度: ${userLocation.latitude}\n经度: ${userLocation.longitude}\n\n需要我帮您查询当地天气吗？`;
+          } else {
+            replyMsg = '您还没有发送位置信息，请在微信中发送您的位置，我会帮您查询当地天气！';
+          }
+          addMessageToConversation(fromUser, 'user', content);
+          addMessageToConversation(fromUser, 'assistant', replyMsg);
+        } else {
+          const domain = detectDomain(content);
+          
+          const lastAssistantMessage = '';
+          const wasAskingForCity = lastAssistantMessage && lastAssistantMessage.includes('查询哪个城市的天气');
+          let detectedCity = extractCityFromMessage(content);
+          
+          if ((domain === 'weather' || wasAskingForCity) && detectedCity) {
           console.log('查询天气:', detectedCity);
           const weatherData = await getWeather(detectedCity);
           if (weatherData) {
@@ -785,8 +820,9 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
         }
         
         // 保存对话到历史记录（所有文本消息都保存）
-        addMessageToConversation(fromUser, 'user', content);
-        addMessageToConversation(fromUser, 'assistant', replyMsg);
+          addMessageToConversation(fromUser, 'user', content);
+          addMessageToConversation(fromUser, 'assistant', replyMsg);
+        }
       } else {
         console.log('不支持的消息类型:', msgType);
         replyMsg = '暂不支持该类型消息';
