@@ -88,6 +88,23 @@ function getUserLocation(openid) {
   return userLocations[openid] || null;
 }
 
+// 清理AI回复格式（移除 ** 符号，添加礼貌用语和表情）
+function cleanAiResponse(text) {
+  if (!text) return '';
+  
+  let result = text
+    .replace(/\*\*(.*?)\*\*/g, '$1')  // 移除 **内容**
+    .replace(/\*/g, '')              // 移除单独的 *
+    .trim();
+  
+  // 添加表情和礼貌用语
+  if (!result.includes('！') && !result.includes('。')) {
+    result += '哦~';
+  }
+  
+  return result;
+}
+
 function getMockWeather(cityName) {
   const specialWeather = {
     '金华': { weather: '大雨', temperature: '31', windDirection: '东风', windPower: '4', humidity: '76' },
@@ -741,9 +758,18 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
         if (isAskingLocation) {
           const userLocation = getUserLocation(fromUser);
           if (userLocation) {
-            replyMsg = `您当前的位置是：\n纬度: ${userLocation.latitude}\n经度: ${userLocation.longitude}\n\n需要我帮您查询当地天气吗？`;
+            // 调用AI将经纬度转换为地址
+            const locationPrompt = `请将以下经纬度转换为中文地址描述（省市区格式，简洁明了）：\n纬度: ${userLocation.latitude}\n经度: ${userLocation.longitude}`;
+            
+            const locationResponse = await callSOLOAutoModel([
+              { role: 'system', content: '你是一个地理信息专家，擅长将经纬度转换为准确的中文地址。只返回地址，不要多余内容。' },
+              { role: 'user', content: locationPrompt }
+            ]);
+            
+            const address = cleanAiResponse(locationResponse) || `${userLocation.latitude}, ${userLocation.longitude}`;
+            replyMsg = `😊 好的！您当前的位置是：\n📍 ${address}\n\n需要我帮您查询当地天气吗？🌤️`;
           } else {
-            replyMsg = '您还没有发送位置信息，请在微信中发送您的位置，我会帮您查询当地天气！';
+            replyMsg = '🙋 您还没有发送位置信息呢！\n\n请点击右下角「+」→「位置」发送您的位置，我会帮您保存并查询当地天气哦！';
           }
           addMessageToConversation(fromUser, 'user', content);
           addMessageToConversation(fromUser, 'assistant', replyMsg);
@@ -810,7 +836,7 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
             
             const response = await callSOLOAutoModel(messages);
             
-            replyMsg = response || '抱歉，我没明白您的意思。';
+            replyMsg = cleanAiResponse(response) || '抱歉，我没明白您的意思呢~';
             console.log('AI回复:', replyMsg);
             
           } catch (aiError) {
