@@ -805,7 +805,8 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
                 { role: 'system', content: '你是一个地理信息专家，擅长从经纬度提取城市名称。只返回城市名，不要多余内容。' },
                 { role: 'user', content: locationPrompt }
               ]);
-              detectedCity = cleanAiResponse(locationResponse).replace(/[^\\u4e00-\\u9fa5]/g, '').trim();
+              // 先去掉表情只取中文
+              detectedCity = locationResponse.replace(/[^\u4e00-\u9fa5]/g, '').trim();
               console.log('从位置获取城市:', detectedCity);
             }
           }
@@ -829,6 +830,7 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
           if (!userLocation) {
             replyMsg = '🌤️ 请问您想查询哪个城市的天气？\n\n或者您可以：\n1. 开启位置权限（在服务号设置中授权）\n2. 点击右下角「+」→「位置」发送您的位置\n\n我支持北京、上海、广州、深圳、杭州等多个城市~';
           } else {
+            // 有位置但没获取到城市，直接让AI查
             replyMsg = '🌤️ 正在为您查询当前位置的天气...';
           }
         } else if (!CONFIG.soloAutoModel.useMock) {
