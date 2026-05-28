@@ -776,10 +776,6 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
             replyMsg = response || '抱歉，我没明白您的意思。';
             console.log('AI回复:', replyMsg);
             
-            // 保存对话到历史记录
-            addMessageToConversation(fromUser, 'user', content);
-            addMessageToConversation(fromUser, 'assistant', replyMsg);
-            
           } catch (aiError) {
             console.error('AI调用失败:', aiError);
             replyMsg = '抱歉，AI服务暂时不可用，请稍后再试。';
@@ -787,6 +783,10 @@ app.post('/wechat', express.text({ type: '*/*' }), async (req, res) => {
         } else {
           replyMsg = generateMockResponse(content, domain);
         }
+        
+        // 保存对话到历史记录（所有文本消息都保存）
+        addMessageToConversation(fromUser, 'user', content);
+        addMessageToConversation(fromUser, 'assistant', replyMsg);
       } else {
         console.log('不支持的消息类型:', msgType);
         replyMsg = '暂不支持该类型消息';
