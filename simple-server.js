@@ -579,11 +579,28 @@ function verifyWechatSignature(req) {
 
 function parseXml(xml) {
   const result = {};
-  const regex = /<(\w+)>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/\1>/g;
+  
+  // 第一步：提取XML内容
+  let xmlContent = xml;
+  
+  // 查找<xml>标签内容
+  const xmlStart = xml.indexOf('<xml>');
+  const xmlEnd = xml.indexOf('</xml>');
+  if (xmlStart !== -1 && xmlEnd !== -1) {
+    xmlContent = xml.substring(xmlStart + 5, xmlEnd);
+  }
+  
+  // 第二步：解析每一个标签
+  const tagRegex = /<(\w+)>(?:<!\[CDATA\[)?([\s\S]*?)(?:\]\]>)?<\/\1>/g;
   let match;
   
-  while ((match = regex.exec(xml)) !== null) {
-    result[match[1]] = match[2];
+  while ((match = tagRegex.exec(xmlContent)) !== null) {
+    const tagName = match[1];
+    const tagValue = match[2];
+    // 只处理有效的标签（不处理xml本身）
+    if (tagName !== 'xml') {
+      result[tagName] = tagValue;
+    }
   }
   
   return result;
